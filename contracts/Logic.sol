@@ -6,8 +6,16 @@ library Logic {
 		Term[] arguments;
 	}
 
+	function isConstant(int _term) internal pure returns (bool)  {
+		return _term > 0;
+	}
+
 	function isConstant(Term memory _term) internal pure returns (bool)  {
 		return _term.arguments.length == 0 && _term.symbol > 0;
+	}
+
+	function isVariable(int _term) internal pure returns (bool) {
+		return _term < 0;
 	}
 
 	function isVariable(Term memory _term) internal pure returns (bool) {
