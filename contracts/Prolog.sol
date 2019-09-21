@@ -21,16 +21,16 @@ contract Prolog {
 
 	/// @dev Symbol substitution.
 	struct Substitution {
-		int variable;
-		int atom;
+		uint variable;
+		uint[2] atom;
 	}
 
 	/// @dev Stack of substitutions that are made while solving.
-	mapping (int => int)[] substitutions;
+	mapping (uint => uint[2])[] substitutions;
 
 	/// @dev Fresh variable counters for unification between variables from goal and
 	/// matched rule subgoals.
-	int currentFreshVariable = -1000;
+	uint currentFreshVariable = 1000;
 
 	/**
 	 * @notice Tries to solve a predicate goal given a set of rules.
@@ -48,12 +48,12 @@ contract Prolog {
 	 * @return Whether the goal is solved, and if is, a list of substitutions that solve the goal
 	 */
 	function solve(
-		int _goalSymbol,
-		int[] memory _goalArguments,
-		int[] memory _rulesSymbols,
-		int[][] memory _rulesArguments,
-		int[][] memory _subGoalsSymbols,
-		int[][][] memory _subGoalsArguments
+		uint[2] memory _goalSymbol,
+		uint[2][] memory _goalArguments,
+		uint[2][] memory _rulesSymbols,
+		uint[2][][] memory _rulesArguments,
+		uint[2][][] memory _subGoalsSymbols,
+		uint[2][][][] memory _subGoalsArguments
 	) public returns (bool, Substitution[] memory) {
 		require(_goalArguments.length > 0);
 		Logic.Term[] memory goals = new Logic.Term[](1);
@@ -78,11 +78,13 @@ contract Prolog {
 
 		Substitution[] memory subs = new Substitution[](_goalArguments.length);
 		for (uint i = 0; i < _goalArguments.length; ++i) {
-			subs[i].variable = _goalArguments[i];
-			if (Logic.isVariable(_goalArguments[i]))
-				subs[i].atom = findSubstitution(_goalArguments[i]);
-			else
-				subs[i].atom = subs[i].variable;
+			subs[i].variable = _goalArguments[i][1];
+			if (_goalArguments[i][0] == uint(Logic.TermKind.Variable))
+				subs[i].atom = findSubstitution(_goalArguments[i][1]);
+			else {
+				subs[i].atom[0] = _goalArguments[i][0];
+				subs[i].atom[1] = subs[i].variable;
+			}
 		}
 
 		delete substitutions;
@@ -103,14 +105,14 @@ contract Prolog {
 		Logic.Term memory frontGoal = _goals[0];
 		for (uint i = 0; i < _rules.length; ++i) {
 			substitutions.length++;
-			mapping (int => int) storage subs = substitutions[substitutions.length - 1];
+			mapping (uint => uint[2]) storage subs = substitutions[substitutions.length - 1];
 
 			bool unified = Unification.unify(frontGoal, _rules[i].head, subs);
 			if (!unified)
 				continue;
 
 			substitutions.length++;
-			mapping (int => int) storage newSubs = substitutions[substitutions.length - 1];
+			mapping (uint => uint[2]) storage newSubs = substitutions[substitutions.length - 1];
 
 			buildNewSubstitutions(frontGoal.arguments, subs, newSubs);
 			buildNewSubstitutions(_rules[i].head.arguments, subs ,newSubs);
@@ -136,14 +138,15 @@ contract Prolog {
 	function appendNewGoal(
 		Logic.Term memory _goal,
 		Logic.Term memory _newGoal,
-		mapping (int => int) storage _substitutions
+		mapping (uint => uint[2]) storage _substitutions
 	) internal view {
+		_newGoal.kind = _goal.kind;
 		_newGoal.symbol = _goal.symbol;
 		_newGoal.arguments = new Logic.Term[](_goal.arguments.length);
 		for (uint i = 0; i < _goal.arguments.length; ++i) {
-			int argSymbol = _goal.arguments[i].symbol;
-			int sub;
-			if ((sub = _substitutions[argSymbol]) != 0)
+			uint argSymbol = _goal.arguments[i].symbol;
+			uint[2] memory sub = _substitutions[argSymbol];
+			if (sub[1] != 0)
 				_newGoal.arguments[i] = Logic.parseIntoTerm(sub);
 			else
 				_newGoal.arguments[i] = _goal.arguments[i];
@@ -152,34 +155,34 @@ contract Prolog {
 
 	function buildNewSubstitutions(
 		Logic.Term[] memory _args,
-		mapping (int => int) storage oldSubs,
-		mapping (int => int) storage newSubs
+		mapping (uint => uint[2]) storage oldSubs,
+		mapping (uint => uint[2]) storage newSubs
 	) internal {
 		for (uint i = 0; i < _args.length; ++i) {
-			int argSymbol = _args[i].symbol;
-			int sub;
-			if ((sub = oldSubs[argSymbol]) != 0) {
-				if (Logic.isConstant(sub))
+			uint argSymbol = _args[i].symbol;
+			uint[2] memory sub = oldSubs[argSymbol];
+			if (sub[1] != 0) {
+				if (sub[0] == uint(Logic.TermKind.Number) || sub[0] == uint(Logic.TermKind.Literal))
 					newSubs[argSymbol] = sub;
 				else
-					newSubs[argSymbol] = freshVariableSymbol();
+					newSubs[argSymbol] = [sub[0], freshVariableSymbol()];
 			}
 		}
 	}
 
-	function findSubstitution(int _variable) internal view returns (int) {
+	function findSubstitution(uint _variable) internal view returns (uint[2] memory) {
 		for (uint i = 0; i < substitutions.length; ++i) {
-			int sub = substitutions[i][_variable];
-			if (sub != 0) {
-				if (Logic.isConstant(sub))
+			uint[2] memory sub = substitutions[i][_variable];
+			if (sub[1] != 0) {
+				if (sub[0] == uint(Logic.TermKind.Number) || sub[0] == uint(Logic.TermKind.Literal))
 					return sub;
-				_variable = sub;
+				_variable = sub[1];
 			}
 		}
-		return _variable;
+		return [uint(Logic.TermKind.Variable), _variable];
 	}
 
-	function freshVariableSymbol() internal returns (int) {
-		return currentFreshVariable--;
+	function freshVariableSymbol() internal returns (uint) {
+		return currentFreshVariable++;
 	}
 }

@@ -3,15 +3,19 @@ pragma solidity >=0.5.8;
 import './Logic.sol';
 
 contract LogicMock {
-	function isConstant(int _term) public pure returns (bool) {
-		return Logic.isConstant(Logic.parseIntoTerm(_term));
+	function isNumber(uint[2] memory _term) public pure returns (bool) {
+		return Logic.parseIntoTerm(_term).kind == Logic.TermKind.Number;
 	}
 
-	function isVariable(int _term) public pure returns (bool) {
-		return Logic.isVariable(Logic.parseIntoTerm(_term));
+	function isLiteral(uint[2] memory _term) public pure returns (bool) {
+		return Logic.parseIntoTerm(_term).kind == Logic.TermKind.Literal;
+	}
+
+	function isVariable(uint[2] memory _term) public pure returns (bool) {
+		return Logic.parseIntoTerm(_term).kind == Logic.TermKind.Variable;
 	}
 	
-	function isPredicate(int _term, int[] memory _arguments) public pure returns (bool) {
-		return Logic.isPredicate(Logic.parseIntoTerm(_term, _arguments));
+	function isPredicate(uint[2] memory _term, uint[2][] memory _arguments) public pure returns (bool) {
+		return Logic.parseIntoTerm(_term, _arguments).kind == Logic.TermKind.Predicate;
 	}
 }
