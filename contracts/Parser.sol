@@ -1,11 +1,23 @@
 pragma solidity >=0.5.8;
+pragma experimental ABIEncoderV2;
 
+import './Encoder.sol';
 import './Logic.sol';
 import './Prolog.sol';
 
-contract PrologParser {
+contract Parser {
 	uint pos;
 	uint constant zeroChar = 48;
+
+	Prolog.Rule[] rules;
+
+	function encode() public view returns (uint[][][] memory) {
+		return Encoder.encodeRules(rules);
+	}
+
+	function parse(bytes memory _source) public {
+		parse(_source, rules);
+	}
 
 	function parse(bytes memory _source, Prolog.Rule[] storage _rules) internal {
 		pos = 0;
@@ -21,7 +33,7 @@ contract PrologParser {
 		parsePredicate(_source, _rule.head);
 		_rule.tail.length = 0;
 		skipBlanks(_source);
-		require(pos < _source.length, "Expected '.' or ':-'");
+		require(pos < _source.length, "Expected `.` or `:-`");
 		if (_source[pos] == '.') {
 			++pos;
 			return;
@@ -29,17 +41,17 @@ contract PrologParser {
 		require(
 			_source[pos] == ':' &&
 			++pos < _source.length &&
-			_source[pos++] == '-',
-			"Expected ':-'."
+			_source[pos] == '-',
+			"Expected `:-`."
 		);
-		skipBlanks(_source);
 		do {
+			++pos;
+			skipBlanks(_source);
 			_rule.tail.length++;
 			parsePredicate(_source, _rule.tail[_rule.tail.length - 1]);
-			skipBlanks(_source);
-		} while (_source[pos++] == ',');
+		} while (_source[pos] == ',');
 		skipBlanks(_source);
-		require(_source[pos++] == '.', "Expected '.'");
+		require(_source[pos++] == '.', "Expected `.`");
 	}
 
 	function parsePredicate(bytes memory _source, Logic.Term storage _term) internal {
@@ -47,14 +59,15 @@ contract PrologParser {
 		_term.arguments.length = 0;
 		skipBlanks(_source);
 		_term.symbol = parseLiteral(_source);
-		require(_source[pos++] == '(', "Expected '('");
+		require(_source[pos] == '(', error("Expected `(`, found ", _source[pos-1]));
 		do {
+			++pos;
 			_term.arguments.length++;
 			parseTerm(_source, _term.arguments[_term.arguments.length - 1]);
 			skipBlanks(_source);
-		} while (_source[pos++] == ',');
+		} while (_source[pos] == ',');
 		skipBlanks(_source);
-		require(_source[pos++] == ')', "Expected ')'");
+		require(_source[pos++] == ')', error("Expected `)`, found ", _source[pos-1]));
 	}
 
 	function parseTerm(bytes memory _source, Logic.Term storage _term) internal {
@@ -78,12 +91,19 @@ contract PrologParser {
 	}
 
 	function parseNumber(bytes memory _source) internal pure returns (uint) {
+		require(_source.length > 0, "Expected number.");
 		uint p = _source.length - 1;
-		uint acc = uint8(_source[p--]) - zeroChar;
+		uint acc = uint8(_source[p]) - zeroChar;
+		if (p == 0)
+			return acc;
+
 		uint base = 10;
-		while (p >= 0) {
-			acc += base * (uint8(_source[p--]) - zeroChar);
+		while (true) {
+			acc += base * (uint8(_source[--p]) - zeroChar);
 			base *= 10;
+			// TODO fix this, looks ugly
+			if (p == 0)
+				break;
 		}
 		return acc;
 	}
@@ -93,15 +113,17 @@ contract PrologParser {
 		skipBlanks(_source);
 		uint i = 0;
 		while (i++ < 32 && pos < _source.length && isAlpha(_source[pos])) {
-			identifier <<= 1;
-			identifier += uint8(_source[pos]) - zeroChar;
+			identifier <<= 8;
+			identifier |= uint8(_source[pos]);
+			++pos;
 		}
 		require(i > 0 && i < 32, "Identifier must have at least one byte and cannot have more than 32 bytes");
 		return identifier;
 	}
 
 	function skipBlanks(bytes memory _source) internal {
-		while (pos < _source.length && isBlank(_source[pos++])) {}
+		while (pos < _source.length && isBlank(_source[pos]))
+			++pos;
 	}
 
 	function isDigit(byte _char) internal pure returns (bool) {
@@ -124,5 +146,9 @@ contract PrologParser {
 		return _char == ' ' ||
 			_char == '\t' ||
 			_char == '\n';
+	}
+
+	function error(bytes memory _expected, byte _found) internal pure returns (string memory) {
+		return string(abi.encodePacked(_expected, _found));
 	}
 }
