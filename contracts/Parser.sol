@@ -1,7 +1,6 @@
 pragma solidity >=0.5.8;
 pragma experimental ABIEncoderV2;
 
-import './Encoder.sol';
 import './Logic.sol';
 import './Prolog.sol';
 
@@ -10,10 +9,6 @@ contract Parser {
 	uint constant zeroChar = 48;
 
 	Prolog.Rule[] rules;
-
-	function encode() public view returns (uint[][][] memory) {
-		return Encoder.encodeRules(rules);
-	}
 
 	function parse(bytes memory _source) public {
 		parse(_source, rules);

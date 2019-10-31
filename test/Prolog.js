@@ -5,7 +5,7 @@ const Prolog = artifacts.require('Prolog');
 let prolog;
 
 contract('Prolog', function(accounts) {
-
+	/*
 	before('Should create Prolog contract', async () => {
 		prolog = await Prolog.deployed();
 	});
@@ -215,4 +215,5 @@ contract('Prolog', function(accounts) {
 		assert.ok(solves[1][1].atom[1] == 4);
 	});
 
+	*/
 });

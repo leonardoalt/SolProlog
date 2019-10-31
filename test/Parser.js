@@ -20,8 +20,8 @@ contract('Parser', function(accounts) {
 		);
 		console.log(tx);
 		// This fails because web3.js cannot handle multi-dimensional arrays as return.
-		let e = await parser.encode();
-		console.log(e);
+		//let e = await parser.encode();
+		//console.log(e);
 	});
 
 });
