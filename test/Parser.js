@@ -1,4 +1,5 @@
 const assert = require('assert');
+const ethers = require('ethers');
 
 const Parser = artifacts.require('Parser');
 
@@ -11,15 +12,15 @@ contract('Parser', function(accounts) {
 	});
 
 	it('Simple rule', async () => {
+		let rule = 'ff(a):- gg(b).';
 		let tx = await parser.parse.call(
-			[0x66,0x66,0x28,0x61,0x29,0x3a,0x2d,0x20,0x67,0x67,0x28,0x62,0x29,0x2e]
+			ethers.utils.toUtf8Bytes(rule)
 		);
 		console.log(tx);
 		tx = await parser.parse(
-			[0x66,0x66,0x28,0x61,0x29,0x3a,0x2d,0x20,0x67,0x67,0x28,0x62,0x29,0x2e]
+			ethers.utils.toUtf8Bytes(rule)
 		);
 		console.log(tx);
-		// This fails because web3.js cannot handle multi-dimensional arrays as return.
 		//let e = await parser.encode();
 		//console.log(e);
 	});
